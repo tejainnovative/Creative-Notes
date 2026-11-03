@@ -42,6 +42,15 @@ if git grep -l -i -I "$REF" "$tree" -- . >/dev/null 2>&1; then
 fi
 
 parent="$(git rev-parse -q --verify refs/heads/publish || true)"
+# Build on whatever is already on GitHub (e.g. a starter README, or edits made on github.com),
+# so the push is always a normal fast-forward, never a force push.
+if [ "$DRY" = 0 ] && git fetch -q "$REMOTE" main 2>/dev/null; then
+  remote_main="$(git rev-parse FETCH_HEAD)"
+  if [ -z "$parent" ] || ! git merge-base --is-ancestor "$remote_main" "$parent"; then
+    echo "GitHub has commits this branch doesn't; building on top of them."
+    parent="$remote_main"
+  fi
+fi
 if [ -n "$parent" ] && [ "$(git rev-parse "$parent^{tree}")" = "$tree" ]; then
   echo "Publish branch is already up to date with HEAD."
 else
