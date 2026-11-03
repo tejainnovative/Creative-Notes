@@ -30,7 +30,7 @@ test.describe('F04 ask across meetings', () => {
   test('F04-H1 suggestion chip gives an answer with citations that open the meeting', async ({ page }) => {
     await onboard(page, { samples: true });
     await samplesSummarised(page);
-    await page.getByRole('link', { name: 'Ask' }).click();
+    await page.getByRole('link', { name: 'Ask', exact: true }).click();
     await a11y(page, 'S07 Ask empty');
     await page.getByRole('button', { name: 'What did we decide this week?' }).click();
     const sources = page.getByRole('list', { name: 'Sources' }).getByRole('link');
@@ -42,7 +42,7 @@ test.describe('F04 ask across meetings', () => {
 
   test('F04-E1 no meetings yet: empty state points to recording', async ({ page }) => {
     await onboard(page);
-    await page.getByRole('link', { name: 'Ask' }).click();
+    await page.getByRole('link', { name: 'Ask', exact: true }).click();
     await expect(page.getByText('Nothing to ask about yet')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Record a meeting' })).toBeVisible();
   });
@@ -52,7 +52,7 @@ test.describe('F04 ask across meetings', () => {
     page.on('request', (r) => r.url().includes('/api/ai/') && aiCalls.push(r.url()));
     await onboard(page, { samples: true });
     await samplesSummarised(page);
-    await page.getByRole('link', { name: 'Ask' }).click();
+    await page.getByRole('link', { name: 'Ask', exact: true }).click();
     await page.getByRole('button', { name: 'Who said they would follow up?' }).click();
     await expect(page.getByLabel('Conversation').getByText(/Here's what I found|couldn't find/)).toBeVisible();
     expect(aiCalls).toEqual([]);
@@ -61,7 +61,7 @@ test.describe('F04 ask across meetings', () => {
   test('F04-H2 paired: answers come from the server', async ({ page }) => {
     await onboard(page, { samples: true });
     await connectServer(page);
-    await page.getByRole('link', { name: 'Ask' }).click();
+    await page.getByRole('link', { name: 'Ask', exact: true }).click();
     await page.getByRole('button', { name: 'What risks came up recently?' }).click();
     await expect(page.getByText(/Mock answer drawn from/)).toBeVisible({ timeout: 10_000 });
   });

@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, ListPlus, Trash2 } from 'lucide-react';
 import { db } from '../db/schema';
-import { createNote, deleteNote, getSettings, NOTE_MAX, restoreNote, setSetting, updateNote } from '../data';
+import { createNote, createTodo, deleteNote, getSettings, NOTE_MAX, restoreNote, setSetting, updateNote } from '../data';
+import { useDictation } from '../speech/useDictation';
+import { DictationStatus, MicButton, appendPhrase } from './parts/MicButton';
 import { Button, Composer, IconButton, TopBar, useToast } from '../ui';
 
 /**
  * S12 Quick note. Three ways in:
- *  - #/quick              blank note, typed or dictated with the keyboard mic
+ *  - #/quick              blank note, typed or dictated with the mic button
  *  - #/quick?text=...     from the Siri / Shortcuts flow: saved straight away, text removed from the URL
  *  - #/quick?id=...       edit an existing note (from History)
  */
@@ -20,6 +22,12 @@ export function QuickNote() {
   const [loaded, setLoaded] = useState(!params.get('id'));
   const [saved, setSaved] = useState(false);
   const handled = useRef(false);
+  const [spoken, setSpoken] = useState(false);
+  const dictation = useDictation((phrase) => {
+    setSpoken(true);
+    setSaved(false);
+    setText((t) => appendPhrase(t, phrase).slice(0, NOTE_MAX));
+  });
 
   // Shortcut text: save once, then drop it from the address bar and history (security review row 9).
   useEffect(() => {
@@ -47,17 +55,30 @@ export function QuickNote() {
     });
   }, [params, loaded]);
 
-  async function save() {
+  /** Saves and returns the note's id. */
+  async function save(quiet = false): Promise<string | undefined> {
     const value = text.trim();
-    if (!value) return;
-    if (id) await updateNote(id, value);
+    if (!value) return undefined;
+    if (dictation.state !== 'idle') await dictation.stop();
+    let noteId = id;
+    if (noteId) await updateNote(noteId, value);
     else {
-      const note = await createNote({ text: value, source: 'typed' });
+      const note = await createNote({ text: value, source: spoken ? 'dictated' : 'typed' });
+      noteId = note.id;
       setId(note.id);
       setParams({ id: note.id }, { replace: true });
     }
     setSaved(true);
-    toast({ tone: 'success', text: 'Note saved' });
+    if (!quiet) toast({ tone: 'success', text: 'Note saved' });
+    return noteId;
+  }
+
+  async function makeTask() {
+    const noteId = await save(true);
+    if (!noteId) return;
+    // The first line becomes the task; the whole note stays linked to it.
+    await createTodo({ text: text.trim().split('\n')[0]!.slice(0, 500), source: 'note', noteId });
+    toast({ tone: 'success', text: 'Saved and added to Tasks', action: { label: 'Open', onClick: () => navigate('/tasks') } });
   }
 
   async function remove() {
@@ -75,6 +96,11 @@ export function QuickNote() {
         actions={id ? <IconButton label="Delete note" onClick={() => void remove()}><Trash2 aria-hidden className="size-5" /></IconButton> : undefined}
       />
       <div className="mx-auto max-w-(--cn-content-max) space-y-3 px-4 py-4">
+        <div className="flex items-center gap-3">
+          <MicButton dictation={dictation} label="Start dictating" />
+          <p className="text-sm text-muted">{dictation.state === 'listening' ? 'Tap again to stop.' : 'Tap the mic and speak, or type below.'}</p>
+        </div>
+        <DictationStatus dictation={dictation} />
         {loaded ? (
           <Composer
             variant="note"
@@ -85,14 +111,15 @@ export function QuickNote() {
               setSaved(false);
             }}
             onSubmit={() => void save()}
-            placeholder="Type a note, or tap the microphone on your keyboard to dictate."
+            placeholder="Type a note, or use the mic above."
           />
         ) : (
           <p role="status" className="text-sm text-muted">Opening note…</p>
         )}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-muted">{text.length} / {NOTE_MAX}</p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" icon={<ListPlus aria-hidden className="size-5" />} disabled={!text.trim()} onClick={() => void makeTask()}>Make it a task</Button>
             <Button variant="secondary" onClick={() => navigate(-1)}>Done</Button>
             <Button disabled={!text.trim() || saved} icon={saved ? <Check aria-hidden className="size-5" /> : undefined} onClick={() => void save()}>
               {saved ? 'Saved' : 'Save'}

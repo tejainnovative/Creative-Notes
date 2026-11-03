@@ -1,6 +1,7 @@
 import { db, type Meeting, type Segment } from '../db/schema';
 import { uuidv7 } from '../db/ids';
 import { createNote } from './notes';
+import { createTodo } from './tasks';
 import { enqueueAiJob } from './jobs';
 
 type Line = [speaker: string | undefined, seconds: number, text: string];
@@ -107,6 +108,15 @@ export async function loadSampleData(): Promise<void> {
     );
     await enqueueAiJob(id, 'summary');
   }
+  const at = (days: number, hour: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, 0, 0, 0);
+    return d.getTime();
+  };
+  await createTodo({ text: 'Order more masking tape and sanding discs', dueAt: at(0, 0) });
+  await createTodo({ text: 'Send the monthly figures to the accountant', dueAt: at(2, 0), remindAt: at(2, 9) });
+  await createTodo({ text: 'Look into a second spray booth filter supplier' });
   await createNote({ text: 'Ask the paint supplier about the new clear coat pricing.', source: 'typed' });
   await createNote({ text: 'Remember to renew the shop insurance before the end of the month.', source: 'dictated' });
 }

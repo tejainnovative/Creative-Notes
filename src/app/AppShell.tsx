@@ -6,6 +6,7 @@ import { recoverInterruptedMeetings, useRecorder } from '../speech/recorder';
 import { refreshServer } from '../net/api';
 import { pullInbox } from '../net/inbox';
 import { RecordingPill } from './RecordingPill';
+import { useReminders } from './reminders';
 
 /** Routes that take the whole screen on phones (no tab bar). */
 const FULL_SCREEN = ['/record', '/welcome', '/quick'];
@@ -47,7 +48,12 @@ export function AppShell() {
 
   if (!settings) return null; // first IndexedDB read takes a few ms; avoids a flash of the wrong screen
   if (!settings.onboarded && !PRE_ONBOARDING.some((p) => pathname.startsWith(p))) return <Navigate to="/welcome" replace />;
+  return <Shell pathname={pathname} recording={rec.status !== 'idle'} />;
+}
 
+/** The signed-in app: nav, content, and the reminder checker (which needs the router). */
+function Shell({ pathname, recording }: { pathname: string; recording: boolean }) {
+  useReminders();
   const full = FULL_SCREEN.some((p) => pathname.startsWith(p));
   return (
     <div className="lg:flex lg:min-h-dvh">
@@ -58,7 +64,7 @@ export function AppShell() {
         <NavBar />
       </div>
       <main id="main" tabIndex={-1} className={cx('min-w-0 flex-1 focus:outline-none', !full && 'pb-[calc(var(--cn-tabbar)+env(safe-area-inset-bottom))] lg:pb-0')}>
-        {rec.status !== 'idle' && !pathname.startsWith('/record') && <RecordingPill />}
+        {recording && !pathname.startsWith('/record') && <RecordingPill />}
         <Outlet />
       </main>
     </div>

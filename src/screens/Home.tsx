@@ -75,7 +75,9 @@ export function Home() {
       <section aria-label="Today at a glance" className="grid grid-cols-3 gap-3">
         <StatTile value={stats?.today ?? 0} label="Meetings today" />
         <StatTile value={stats?.insights ?? 0} label="Insights" />
-        <StatTile value={stats?.openActions ?? 0} label="Open actions" />
+        <Link to="/tasks" className="rounded-lg">
+          <StatTile value={stats?.openActions ?? 0} label="Open tasks" />
+        </Link>
       </section>
 
       <section aria-labelledby="recent-heading" className="space-y-2">

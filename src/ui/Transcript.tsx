@@ -41,6 +41,7 @@ interface LineProps {
 export function TranscriptLine({ text, atMs, speaker, partial, highlighted, insight }: LineProps) {
   return (
     <li
+      data-state={partial ? 'partial' : 'final'}
       className={cx(
         'border-l-2 px-4 py-2',
         insight ? 'border-accent' : 'border-transparent',

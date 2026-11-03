@@ -14,6 +14,7 @@ import { MicHelp } from '../screens/MicHelp';
 import { Unsupported } from '../screens/Unsupported';
 import { QuickNote } from '../screens/QuickNote';
 import { OfflineSetup } from '../screens/OfflineSetup';
+import { Tasks } from '../screens/Tasks';
 
 // Hash routes keep everything after # (including quick-note text) out of server logs.
 // Screen IDs (S01-S15) are shared by the code, tests and screenshots.
@@ -28,6 +29,7 @@ export const router = createHashRouter([
       { path: '/m/:id', element: <Meeting /> },
       { path: '/m/:id/score', element: <Stub id="S05" title="Meeting score" back /> },
       { path: '/history', element: <History /> },
+      { path: '/tasks', element: <Tasks /> },
       { path: '/ask', element: <Ask /> },
       { path: '/settings', element: <Settings /> },
       { path: '/mic-help', element: <MicHelp /> },

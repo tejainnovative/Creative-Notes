@@ -59,6 +59,7 @@ test.describe('F08 back up and restore', () => {
 
   test('F08-E1 restoring the same backup twice adds nothing the second time', async ({ page }) => {
     await onboard(page, { samples: true });
+    await samplesSummarised(page); // a quiet device: nothing changes between backup and restore
     const file = await backUp(page);
     await restore(page, file);
     await expect(page.locator('dialog[open]').getByText(/Nothing new to add/)).toBeVisible();

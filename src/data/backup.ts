@@ -16,7 +16,7 @@ export const MIN_PASSPHRASE = 10;
 const ITERATIONS = 600_000;
 
 /** Tables that hold the user's content, in restore order (parents first). */
-const TABLES = ['meetings', 'segments', 'insights', 'summaries', 'actionItems', 'manualNotes', 'notes', 'scoreCards', 'chatMessages'] as const;
+const TABLES = ['meetings', 'segments', 'insights', 'summaries', 'actionItems', 'manualNotes', 'notes', 'scoreCards', 'chatMessages', 'todos'] as const;
 type TableName = (typeof TABLES)[number];
 /** Settings worth carrying to a new device. Never the device token or id. */
 const SETTINGS = ['displayName', 'language', 'theme', 'connectivityMode'] as const;

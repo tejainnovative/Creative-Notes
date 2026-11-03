@@ -51,6 +51,8 @@ export default defineConfig({
           // A regex, not a function: workbox copies this into the service worker, where `base` doesn't exist.
           { urlPattern: /\/ort\/ort-wasm-simd-threaded\.(wasm|mjs)$/, handler: 'CacheFirst', options: { cacheName: 'ort-runtime' } },
         ],
+        // Tapping a reminder notification opens Tasks (public/sw-notify.js).
+        importScripts: ['sw-notify.js'],
         navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/\/api\//],
         cleanupOutdatedCaches: true,

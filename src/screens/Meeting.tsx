@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { FileQuestion, Lightbulb, RotateCcw, Share2, Trash2 } from 'lucide-react';
 import {
@@ -162,6 +162,11 @@ function SummaryTab({ detail }: { detail: MeetingDetail }) {
           <ul>{actions.map((a) => <ActionItemRow key={a.id} id={a.id} owner={a.owner} text={a.text ?? ''} due={a.dueText} done={a.done === 1} onToggle={(d) => void setActionDone(a.id, d)} />)}</ul>
         ) : (
           <p className="text-sm text-muted">No one committed to anything specific.</p>
+        )}
+        {actions.length > 0 && (
+          <Link to="/tasks" className="mt-1 inline-flex h-11 items-center text-sm font-semibold text-accent hover:underline">
+            Set due dates and reminders in Tasks
+          </Link>
         )}
       </section>
       {!!summary.keyTopics?.length && (

@@ -68,10 +68,9 @@ export async function startRecording(page: Page) {
   await expect(page).toHaveURL(/#\/(record|mic-help)/);
 }
 
+/** Waits until at least `lines` finished lines are on screen (a line still being heard doesn't count). */
 export async function waitForTranscript(page: Page, lines = 2) {
-  await expect(page.locator('ol[aria-label="Demo transcript"] > li')).toHaveCount(lines, { timeout: 15_000 }).catch(async () => {
-    await expect(page.locator('ol[aria-label="Demo transcript"] > li').nth(lines - 1)).toBeVisible({ timeout: 15_000 });
-  });
+  await expect(page.locator('ol[aria-label="Demo transcript"] > li[data-state="final"]').nth(lines - 1)).toBeVisible({ timeout: 15_000 });
 }
 
 /** Pairs this device with the mock API through Settings. */

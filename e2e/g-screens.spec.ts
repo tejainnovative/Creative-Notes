@@ -4,6 +4,7 @@ import { test, expect, onboard, a11y } from './fixtures';
 const screens: [string, string][] = [
   ['S02 Home', '/#/'],
   ['S06 History', '/#/history'],
+  ['S16 Tasks', '/#/tasks'],
   ['S07 Ask', '/#/ask'],
   ['S08 Settings', '/#/settings'],
   ['S10 Mic help', '/#/mic-help'],

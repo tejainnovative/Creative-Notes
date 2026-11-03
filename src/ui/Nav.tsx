@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { ChevronLeft, Clock, House, Settings, Sparkles } from 'lucide-react';
+import { ChevronLeft, Clock, House, ListTodo, Settings, Sparkles } from 'lucide-react';
 import { IconButton } from './Button';
 import { cx } from './cx';
 
 const items = [
   { to: '/', label: 'Home', Icon: House, end: true },
+  { to: '/tasks', label: 'Tasks', Icon: ListTodo, end: false },
   { to: '/ask', label: 'Ask', Icon: Sparkles, end: false },
   { to: '/history', label: 'History', Icon: Clock, end: false },
   { to: '/settings', label: 'Settings', Icon: Settings, end: false },
@@ -22,7 +23,7 @@ export function NavBar() {
       )}
     >
       <p className="hidden px-5 pb-4 text-lg lg:block">Creative Notes</p>
-      <ul className="grid h-(--cn-tabbar) grid-cols-4 lg:h-auto lg:grid-cols-1 lg:gap-1 lg:px-3">
+      <ul className="grid h-(--cn-tabbar) grid-cols-5 lg:h-auto lg:grid-cols-1 lg:gap-1 lg:px-3">
         {items.map(({ to, label, Icon, end }) => (
           <li key={to}>
             <NavLink

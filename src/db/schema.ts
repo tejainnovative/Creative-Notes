@@ -80,6 +80,27 @@ export interface ActionItem {
   priority: 1 | 2 | 3;
   done: 0 | 1;                    // number so it can be indexed
   exportedAt?: Ms;
+  /** When to remind; reminders are shown once, then remindedAt is set. */
+  remindAt?: Ms;
+  remindedAt?: Ms;
+  completedAt?: Ms;
+  enc?: EncBlob;
+}
+
+/** A to-do the user wrote (not from a meeting summary). */
+export interface Todo {
+  id: Id;
+  text?: string;                  // private
+  done: 0 | 1;
+  dueAt?: Ms;
+  remindAt?: Ms;
+  remindedAt?: Ms;
+  completedAt?: Ms;
+  /** Where it came from: typed, spoken, or made from a quick note. */
+  source: 'typed' | 'dictated' | 'note';
+  noteId?: Id;
+  createdAt: Ms;
+  updatedAt: Ms;
   enc?: EncBlob;
 }
 
@@ -156,6 +177,7 @@ export class CreativeNotesDB extends Dexie {
   scoreCards!: Table<ScoreCard, Id>;
   chatMessages!: Table<ChatMessage, Id>;
   aiJobs!: Table<AiJob, Id>;
+  todos!: Table<Todo, Id>;
   settings!: Table<Setting, string>;
   cryptoMeta!: Table<CryptoMeta, string>;
 
@@ -174,6 +196,11 @@ export class CreativeNotesDB extends Dexie {
       aiJobs:       'id, &[meetingId+kind], status, nextRunAt',
       settings:     'key',
       cryptoMeta:   'key',
+    });
+    // v2: to-dos, and reminders on to-dos and meeting action items. Additive: existing data is kept.
+    this.version(2).stores({
+      actionItems:  'id, meetingId, done, dueAt, remindAt',
+      todos:        'id, done, dueAt, remindAt, createdAt, noteId',
     });
   }
 }

@@ -134,7 +134,7 @@ export async function restoreMeeting(s: MeetingDetail): Promise<void> {
 }
 
 export async function setActionDone(id: string, done: boolean): Promise<void> {
-  await db.actionItems.update(id, { done: done ? 1 : 0 });
+  await db.actionItems.update(id, { done: done ? 1 : 0, completedAt: done ? Date.now() : undefined });
 }
 
 export interface HomeStats {
@@ -149,7 +149,7 @@ export async function homeStats(): Promise<HomeStats> {
   const [today, insights, openActions] = await Promise.all([
     db.meetings.where('startedAt').aboveOrEqual(midnight.getTime()).count(),
     db.insights.count(),
-    db.actionItems.where('done').equals(0).count(),
+    Promise.all([db.actionItems.where('done').equals(0).count(), db.todos.where('done').equals(0).count()]).then(([a, t]) => a + t),
   ]);
   return { today, insights, openActions };
 }
