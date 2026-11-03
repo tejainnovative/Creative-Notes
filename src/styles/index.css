@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import './tokens.css';
+@import './theme.css';
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-bg text-fg font-sans text-base antialiased;
+    min-height: 100dvh;
+  }
+  :focus-visible {
+    outline: 2px solid var(--cn-focus);
+    outline-offset: 2px;
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@keyframes cn-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cn-danger) 45%, transparent); }
+  100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--cn-danger) 0%, transparent); }
+}
+@keyframes cn-blink { 50% { opacity: 0; } }
+@keyframes cn-shimmer { 100% { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

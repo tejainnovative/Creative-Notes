@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages
+
+# Builds the app and publishes it to GitHub Pages on every push to main.
+# GitHub Pages serves static files only: the app runs fully on the device (offline speech,
+# preview summaries). The optional server (Claude, Deepgram, Siri inbox) is deployed separately.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # Install scripts aren't needed for the browser build (they fetch Node-only native binaries).
+      - run: npm ci --ignore-scripts
+      - name: Server tests
+        run: npm run test:server
+      - name: Build
+        run: npm run build
+        env:
+          # Pages serves the site at https://<owner>.github.io/<repo>/
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

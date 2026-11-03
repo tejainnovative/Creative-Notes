@@ -1,0 +1,14 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+.wrangler
+.DS_Store
+*.tsbuildinfo
+.data
+!.env.example
+e2e-report
+test-results
+public/ort
+screenshots

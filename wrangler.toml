@@ -1,0 +1,25 @@
+# Cloudflare Worker: serves the built app from ./dist and the API under /api.
+# Used by /replica-deploy. Create the database first:
+#   wrangler d1 create creative-notes      -> paste the id below
+#   wrangler d1 migrations apply creative-notes --remote
+name = "creative-notes"
+main = "server/src/worker.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "creative-notes"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+migrations_dir = "server/migrations"
+
+[triggers]
+crons = ["0 * * * *"]
+
+# Secrets (not here): ANTHROPIC_API_KEY, DEEPGRAM_API_KEY, SETUP_CODE, INBOX_KEY
