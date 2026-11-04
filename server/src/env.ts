@@ -13,6 +13,8 @@ export interface Env {
   AI_MODEL?: string;
   /** Input + output tokens per device per UTC day. Default 2,000,000. */
   DAILY_TOKEN_BUDGET?: string;
+  /** Comma-separated origins allowed to call the API from another site, e.g. https://you.github.io */
+  ALLOWED_ORIGINS?: string;
 }
 
 /** Everything a request handler needs. Tests swap any part of it. */

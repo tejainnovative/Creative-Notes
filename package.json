@@ -19,7 +19,8 @@
     "predev": "node scripts/copy-ort.mjs",
     "prebuild": "node scripts/copy-ort.mjs",
     "test:whisper": "node node_modules/@playwright/test/cli.js test --project=whisper",
-    "publish": "bash scripts/publish.sh"
+    "publish": "bash scripts/publish.sh",
+    "deploy:api": "node scripts/build-worker.mjs && node node_modules/wrangler/bin/wrangler.js deploy dist-worker/worker.js --no-bundle"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
@@ -46,10 +47,15 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "esbuild": "npm:esbuild-wasm@^0.28.2",
     "playwright-core": "^1.64.1",
     "tailwindcss": "^4.3.4",
     "typescript": "^5.9.3",
     "vite": "^8.3.5",
-    "vite-plugin-pwa": "^2.0.0"
+    "vite-plugin-pwa": "^2.0.0",
+    "wrangler": "^4.157.0"
+  },
+  "overrides": {
+    "esbuild": "npm:esbuild-wasm@0.28.2"
   }
 }

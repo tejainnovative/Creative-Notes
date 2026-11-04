@@ -4,6 +4,7 @@ import { NavBar, cx } from '../ui';
 import { requestPersistentStorage, runAiJobs, useSettings } from '../data';
 import { recoverInterruptedMeetings, useRecorder } from '../speech/recorder';
 import { runCleanups } from '../speech/cleanup';
+import { startAutoSync } from '../sync/engine';
 import { refreshServer } from '../net/api';
 import { pullInbox } from '../net/inbox';
 import { RecordingPill } from './RecordingPill';
@@ -36,6 +37,7 @@ export function AppShell() {
     };
     void sync();
     void requestPersistentStorage();
+    const stopSync = startAutoSync();
     const onOnline = () => void sync();
     const onOffline = () => void refreshServer();
     window.addEventListener('online', onOnline);
@@ -45,6 +47,7 @@ export function AppShell() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
       clearInterval(timer);
+      stopSync();
     };
   }, []);
 

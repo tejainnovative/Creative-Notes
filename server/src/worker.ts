@@ -7,7 +7,8 @@ import type { Env } from './env.ts';
 
 interface WorkerEnv extends Env {
   DB: Parameters<typeof d1Db>[0];
-  ASSETS: { fetch(req: Request): Promise<Response> };
+  /** Present only if the app is also served from this Worker. */
+  ASSETS?: { fetch(req: Request): Promise<Response> };
 }
 
 function deps(env: WorkerEnv) {
@@ -23,7 +24,7 @@ function deps(env: WorkerEnv) {
 export default {
   async fetch(req: Request, env: WorkerEnv): Promise<Response> {
     if (new URL(req.url).pathname.startsWith('/api/')) return createApp(deps(env)).fetch(req);
-    return env.ASSETS.fetch(req);
+    return env.ASSETS ? env.ASSETS.fetch(req) : new Response('Not found', { status: 404 });
   },
   async scheduled(_event: unknown, env: WorkerEnv): Promise<void> {
     await cleanup(deps(env));

@@ -75,6 +75,10 @@ export function Settings() {
           <SettingsRow label="Offline transcription" value={s.offlineModel === 'ready' ? 'Ready' : 'Not set up'} onClick={() => navigate('/settings/offline')} />
         </SettingsGroup>
 
+        <SettingsGroup title="Sync">
+          <SettingsRow label="Sync between devices" value={s.syncKey ? 'On' : 'Off'} description="Tasks, notes and meetings on your phone and computer" onClick={() => navigate('/settings/sync')} />
+        </SettingsGroup>
+
         <ServerSettings />
 
         <SettingsGroup title="Appearance">

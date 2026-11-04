@@ -1,4 +1,4 @@
-# Cloudflare Worker: serves the built app from ./dist and the API under /api.
+# Cloudflare Worker: the API under /api.
 # Used by /replica-deploy. Create the database first:
 #   wrangler d1 create creative-notes      -> paste the id below
 #   wrangler d1 migrations apply creative-notes --remote
@@ -7,19 +7,20 @@ main = "server/src/worker.ts"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "./dist"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+# API only: the app itself is served by GitHub Pages (its speech runtime is over the
+# 25 MiB Workers asset limit). Deploy with: npm run deploy:api
 
 [[d1_databases]]
 binding = "DB"
 database_name = "creative-notes"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "232ef20c-567a-407c-b9d2-c2423bbf7d48"
 migrations_dir = "server/migrations"
 
 [triggers]
 crons = ["0 * * * *"]
 
 # Secrets (not here): ANTHROPIC_API_KEY, DEEPGRAM_API_KEY, SETUP_CODE, INBOX_KEY
+
+[vars]
+# The app on GitHub Pages calls this server from another origin.
+ALLOWED_ORIGINS = "https://tejainnovative.github.io"

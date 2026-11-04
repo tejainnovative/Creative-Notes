@@ -171,6 +171,16 @@ export interface AudioChunk {
   atMs: number;
 }
 
+/** What this device last synced for each unit (a to-do, a note, or a meeting with its parts). */
+export interface SyncMeta {
+  /** e.g. 'todo:<id>', 'meeting:<id>'. Local only. */
+  key: string;
+  /** The key as the server knows it (an HMAC, so the server can't read ids). */
+  rkey: string;
+  /** SHA-256 of the unit as last synced. */
+  hash: string;
+}
+
 export interface Setting { key: string; value: unknown }
 
 export interface CryptoMeta {
@@ -193,6 +203,7 @@ export class CreativeNotesDB extends Dexie {
   aiJobs!: Table<AiJob, Id>;
   todos!: Table<Todo, Id>;
   audio!: Table<AudioChunk, Id>;
+  syncMeta!: Table<SyncMeta, string>;
   settings!: Table<Setting, string>;
   cryptoMeta!: Table<CryptoMeta, string>;
 
@@ -220,6 +231,10 @@ export class CreativeNotesDB extends Dexie {
     // v3: meeting audio, temporary, for the after-meeting clean-up pass.
     this.version(3).stores({
       audio:        'id, meetingId, [meetingId+seq]',
+    });
+    // v4: sync bookkeeping (what was last sent or received for each unit).
+    this.version(4).stores({
+      syncMeta:     'key, rkey',
     });
   }
 }

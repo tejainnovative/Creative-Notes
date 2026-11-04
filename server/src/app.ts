@@ -6,6 +6,7 @@ import { open, seal, uuidv7 } from './crypto.ts';
 import type { Deps } from './env.ts';
 import { bodyLimit, dailyBudget, rateLimit } from './limits.ts';
 import { SttTokenInput, sttToken } from './stt.ts';
+import { syncRoutes } from './sync.ts';
 
 const PairInput = z.object({
   setup_code: z.string().min(1).max(200),
@@ -30,11 +31,34 @@ async function body<T extends z.ZodType>(c: { req: { json(): Promise<unknown> } 
 export function createApp(deps: Deps) {
   const app = new Hono<AppEnv>().basePath('/api');
 
+  // Only the app's own origins (ALLOWED_ORIGINS) may call from another site, e.g. the app on
+  // GitHub Pages calling this server. Tokens go in a header, never cookies, so there's no CSRF.
+  const allowed = new Set((deps.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  app.use('*', async (c, next) => {
+    const origin = c.req.header('origin');
+    const ok = !!origin && allowed.has(origin);
+    if (c.req.method === 'OPTIONS') {
+      if (!ok) return c.body(null, 403);
+      return c.body(null, 204, {
+        'Access-Control-Allow-Origin': origin!,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+        'Access-Control-Allow-Headers': 'authorization, content-type',
+        'Access-Control-Max-Age': '86400',
+        Vary: 'Origin',
+      });
+    }
+    await next();
+    if (ok) {
+      c.header('Access-Control-Allow-Origin', origin!);
+      c.header('Vary', 'Origin');
+    }
+  });
+
   app.use('*', async (c, next) => {
     c.set('deps', deps);
     const started = Date.now();
     await next();
-    // Same-origin only: no CORS headers are ever sent. Nothing here is cacheable.
+    // Nothing here is cacheable.
     c.header('Cache-Control', 'no-store');
     c.header('X-Content-Type-Options', 'nosniff');
     c.header('Referrer-Policy', 'no-referrer');
@@ -43,7 +67,7 @@ export function createApp(deps: Deps) {
   });
 
   app.get('/health', (c) =>
-    c.json({ ok: true, time: deps.now(), ai: !!deps.env.ANTHROPIC_API_KEY, stt: !!deps.env.DEEPGRAM_API_KEY, inbox: !!deps.env.INBOX_KEY }),
+    c.json({ ok: true, time: deps.now(), ai: !!deps.env.ANTHROPIC_API_KEY, stt: !!deps.env.DEEPGRAM_API_KEY, inbox: !!deps.env.INBOX_KEY, sync: true }),
   );
 
   app.post('/pair', bodyLimit(4 * 1024), async (c) => {
@@ -113,6 +137,8 @@ export function createApp(deps: Deps) {
     for (const id of b.data.ids) await deps.db.run('delete from inbox_items where id = ?', id);
     return c.body(null, 204);
   });
+
+  syncRoutes(app, body);
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
   app.onError((err, c) => {

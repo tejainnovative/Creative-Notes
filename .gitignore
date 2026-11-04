@@ -12,3 +12,7 @@ e2e-report
 test-results
 public/ort
 screenshots
+
+# Local copies of server secrets (setup code). Never committed.
+.secrets/
+dist-worker/

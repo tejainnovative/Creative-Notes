@@ -17,13 +17,13 @@ const PAIR_ERRORS: Record<string, string> = {
   not_configured: "The server has no setup code yet. Add SETUP_CODE to the server's settings.",
 };
 
-function defaultLabel() {
+export function defaultLabel() {
   const ua = navigator.userAgent;
   const device = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows PC' : 'Device';
   return `${device} · ${new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
 }
 
-async function pair(setupCode: string, label: string, scope: 'full' | 'inbox:write') {
+export async function pair(setupCode: string, label: string, scope: 'full' | 'inbox:write') {
   const res = await apiFetch('/pair', { body: { setup_code: setupCode.trim(), label: label.trim(), scope }, auth: false });
   return (await res.json()) as { device_id: string; token: string };
 }

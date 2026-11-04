@@ -35,6 +35,8 @@ jobs:
         env:
           # Pages serves the site at https://<owner>.github.io/<repo>/
           BASE_PATH: /${{ github.event.repository.name }}/
+          # The API (sync, summaries, Siri inbox) runs on Cloudflare: see wrangler.toml.
+          VITE_API_ORIGIN: https://creative-notes.creative-notes.workers.dev
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

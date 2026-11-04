@@ -14,6 +14,7 @@ import { MicHelp } from '../screens/MicHelp';
 import { Unsupported } from '../screens/Unsupported';
 import { QuickNote } from '../screens/QuickNote';
 import { OfflineSetup } from '../screens/OfflineSetup';
+import { SyncSetup } from '../screens/SyncSetup';
 import { Tasks } from '../screens/Tasks';
 
 // Hash routes keep everything after # (including quick-note text) out of server logs.
@@ -36,6 +37,7 @@ export const router = createHashRouter([
       { path: '/unsupported', element: <Unsupported /> },
       { path: '/quick', element: <QuickNote /> },
       { path: '/settings/offline', element: <OfflineSetup /> },
+      { path: '/settings/sync', element: <SyncSetup /> },
       { path: '/install', element: <Install /> },
       { path: '/unlock', element: <Stub id="S15" title="Unlock" /> },
       { path: '*', element: <Stub id="404" title="Page not found" back /> },

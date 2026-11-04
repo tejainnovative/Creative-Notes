@@ -22,6 +22,12 @@ export interface Settings {
   /** Token from /api/pair. Empty when this device isn't connected to the server. */
   deviceToken: string;
   deviceId: string;
+  /** Sync key (base64, from the sync passphrase). Empty = sync is off on this device. */
+  syncKey: string;
+  /** Last server seq this device has pulled. */
+  syncCursor: number;
+  /** Epoch ms of the last finished sync; 0 = never. */
+  lastSyncAt: number;
   /** Epoch ms of the last backup file made on this device; 0 = never. */
   lastBackupAt: number;
 }
@@ -41,6 +47,9 @@ export const defaultSettings: Settings = {
   deviceToken: '',
   deviceId: '',
   lastBackupAt: 0,
+  syncKey: '',
+  syncCursor: 0,
+  lastSyncAt: 0,
 };
 
 export async function getSettings(): Promise<Settings> {

@@ -6,8 +6,12 @@ import { getSettings, setSetting } from '../data/settings';
  * settings and is sent as a Bearer header; it never goes in a URL.
  */
 
-/** Same origin, under the app's base path (e.g. /creative-notes/api on a sub-path host). */
-export const API = `${import.meta.env.BASE_URL}api`;
+/**
+ * The server: VITE_API_ORIGIN when the app is hosted somewhere else (GitHub Pages), otherwise
+ * the same origin under the app's base path.
+ */
+const ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined)?.replace(/\/$/, '');
+export const API = ORIGIN ? `${ORIGIN}/api` : `${import.meta.env.BASE_URL}api`;
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string) {
@@ -51,21 +55,22 @@ export interface ServerStatus {
   ai: boolean;
   stt: boolean;
   inbox: boolean;
+  sync: boolean;
   checkedAt: number;
 }
 
-let status: ServerStatus = { reachable: false, paired: false, ai: false, stt: false, inbox: false, checkedAt: 0 };
+let status: ServerStatus = { reachable: false, paired: false, ai: false, stt: false, inbox: false, sync: false, checkedAt: 0 };
 const listeners = new Set<() => void>();
 
 export async function refreshServer(): Promise<ServerStatus> {
   const { deviceToken } = await getSettings();
-  let next: ServerStatus = { reachable: false, paired: !!deviceToken, ai: false, stt: false, inbox: false, checkedAt: Date.now() };
+  let next: ServerStatus = { reachable: false, paired: !!deviceToken, ai: false, stt: false, inbox: false, sync: false, checkedAt: Date.now() };
   // An unpaired device never contacts the server: nothing to ask it, and nothing should leave the device.
   if (deviceToken && navigator.onLine) {
     try {
       const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000), credentials: 'omit' });
-      const h = (await res.json()) as { ok?: boolean; ai?: boolean; stt?: boolean; inbox?: boolean };
-      if (res.ok && h.ok) next = { ...next, reachable: true, ai: !!h.ai, stt: !!h.stt, inbox: !!h.inbox };
+      const h = (await res.json()) as { ok?: boolean; ai?: boolean; stt?: boolean; inbox?: boolean; sync?: boolean };
+      if (res.ok && h.ok) next = { ...next, reachable: true, ai: !!h.ai, stt: !!h.stt, inbox: !!h.inbox, sync: !!h.sync };
     } catch {
       // offline, server down, or the static build is served without the API: all mean "not reachable"
     }
