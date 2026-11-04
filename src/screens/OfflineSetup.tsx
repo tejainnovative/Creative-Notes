@@ -4,7 +4,7 @@ import { CheckCircle2, Download, Smartphone, Trash2 } from 'lucide-react';
 import { requestPersistentStorage, setSetting, storageEstimate, useSettings } from '../data';
 import { bytesLabel } from '../app/format';
 import { useOnline } from '../app/connectivity';
-import { MODEL, deleteWhisper, loadWhisper, whisperCached, type LoadProgress } from '../speech/whisper';
+import { MODELS, deleteWhisper, loadWhisper, whisperCached, type LoadProgress, type ModelKey } from '../speech/whisper';
 import { Banner, Button, ConfirmDialog, ProgressBar, SettingsGroup, SettingsRow, Skeleton, Toggle, TopBar, useToast } from '../ui';
 
 type Phase = 'checking' | 'none' | 'downloading' | 'ready' | 'failed';
@@ -16,6 +16,10 @@ export function OfflineSetup() {
   const toast = useToast();
   const storage = useLiveQuery(storageEstimate, []);
   const [phase, setPhase] = useState<Phase>('checking');
+  /** The model picked on this screen; becomes the one in use once it's downloaded. */
+  const [picked, setPicked] = useState<ModelKey | null>(null);
+  const model: ModelKey = picked ?? s?.offlineModelId ?? 'tiny';
+  const MODEL = MODELS[model];
   const [progress, setProgress] = useState<LoadProgress>({ loaded: 0, total: MODEL.approxBytes });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -26,7 +30,7 @@ export function OfflineSetup() {
   useEffect(() => {
     if (!s || phase !== 'checking') return;
     if (s.offlineModel !== 'ready') return setPhase('none');
-    void whisperCached().then((cached) => {
+    void whisperCached(model).then((cached) => {
       if (cached) setPhase('ready');
       else {
         setPhase('none');
@@ -35,11 +39,23 @@ export function OfflineSetup() {
     });
   }, [settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function pick(next: ModelKey) {
+    if (phase === 'downloading' || next === model) return;
+    setPicked(next);
+    setProgress({ loaded: 0, total: MODELS[next].approxBytes });
+    if (await whisperCached(next)) {
+      await setSetting('offlineModelId', next);
+      await setSetting('offlineModel', 'ready');
+      setPhase('ready');
+    } else setPhase('none');
+  }
+
   async function download() {
     setPhase('downloading');
     await requestPersistentStorage();
     try {
-      await loadWhisper((p) => setProgress(p));
+      await loadWhisper(model, (p) => setProgress(p));
+      await setSetting('offlineModelId', model);
       await setSetting('offlineModel', 'ready');
       setPhase('ready');
       toast({ tone: 'success', text: 'Offline transcription is ready' });
@@ -73,6 +89,19 @@ export function OfflineSetup() {
             </div>
           </div>
 
+          <fieldset className="space-y-2" disabled={phase === 'downloading'}>
+            <legend className="mb-1 text-sm font-medium">Model</legend>
+            {(Object.keys(MODELS) as ModelKey[]).map((k) => (
+              <label key={k} className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 hover:bg-surface-sunken">
+                <input type="radio" name="speech-model" checked={model === k} onChange={() => void pick(k)} className="mt-0.5 size-5 accent-(--cn-accent)" />
+                <span>
+                  <span className="block text-fg">{MODELS[k].label} <span className="text-sm text-muted">· {bytesLabel(MODELS[k].approxBytes)}</span></span>
+                  <span className="block text-sm text-muted">{MODELS[k].blurb}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+
           {phase === 'checking' && <Skeleton lines={2} label="Checking for the speech model" />}
 
           {phase === 'none' && (
@@ -85,6 +114,9 @@ export function OfflineSetup() {
               <Button icon={<Download aria-hidden className="size-5" />} disabled={!online} onClick={() => void download()}>
                 Download speech model
               </Button>
+              {s.offlineModel === 'ready' && s.offlineModelId !== model && (
+                <p className="text-xs text-muted">Until it finishes, the {MODELS[s.offlineModelId].label.toLowerCase()} model you already have keeps working.</p>
+              )}
             </>
           )}
 
@@ -120,6 +152,19 @@ export function OfflineSetup() {
           <SettingsRow label="Quick notes" value="Yes" />
           <SettingsRow label="Live transcript" value={phase === 'ready' ? 'Yes, on device' : 'Needs the speech model'} />
           <SettingsRow label="Summaries and answers" value="Queued" description="Written automatically when you're back online" />
+        </SettingsGroup>
+
+        <SettingsGroup title="Accuracy">
+          <SettingsRow
+            label="Use on-device transcription even online"
+            description="Steadier than the browser's speech service for long meetings, and private. Needs the speech model."
+            control={<Toggle label="Use on-device transcription even online" checked={s.speechEngine === 'device'} disabled={phase !== 'ready'} onChange={(on) => void setSetting('speechEngine', on ? 'device' : 'auto')} />}
+          />
+          <SettingsRow
+            label="Clean up the transcript after each meeting"
+            description="Keeps the audio on this device while recording, then re-reads the whole meeting with the speech model for a more accurate transcript. The audio is deleted afterwards."
+            control={<Toggle label="Clean up the transcript after each meeting" checked={s.cleanupAfterRecording} disabled={phase !== 'ready'} onChange={(on) => void setSetting('cleanupAfterRecording', on)} />}
+          />
         </SettingsGroup>
 
         <SettingsGroup title="Privacy">

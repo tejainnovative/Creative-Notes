@@ -13,6 +13,12 @@ export interface Settings {
   consentAcknowledged: boolean;
   installBannerDismissed: boolean;
   offlineModel: 'none' | 'downloading' | 'ready';
+  /** Which on-device speech model: 'tiny' (fast) or 'base' (more accurate). */
+  offlineModelId: 'tiny' | 'base';
+  /** 'auto': browser/cloud speech online, on-device offline. 'device': on-device whenever the model is downloaded. */
+  speechEngine: 'auto' | 'device';
+  /** After a meeting, re-transcribe its audio on the device for a cleaner transcript, then delete the audio. */
+  cleanupAfterRecording: boolean;
   /** Token from /api/pair. Empty when this device isn't connected to the server. */
   deviceToken: string;
   deviceId: string;
@@ -29,6 +35,9 @@ export const defaultSettings: Settings = {
   consentAcknowledged: false,
   installBannerDismissed: false,
   offlineModel: 'none',
+  offlineModelId: 'tiny',
+  speechEngine: 'auto',
+  cleanupAfterRecording: true,
   deviceToken: '',
   deviceId: '',
   lastBackupAt: 0,

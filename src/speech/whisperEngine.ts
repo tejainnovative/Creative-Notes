@@ -1,31 +1,8 @@
-import { SAMPLE_RATE, loadWhisper, transcribe } from './whisper';
+import { getSettings } from '../data/settings';
+import { tapAudio } from './audioTap';
+import { SAMPLE_RATE, loadWhisper, transcribe, whisperLanguage, type ModelKey } from './whisper';
+export { resample } from './audioTap';
 import type { EngineHandlers, SpeechEngine } from './types';
-
-// The worklet just forwards raw frames; all the logic stays on the main thread where it's testable.
-const WORKLET = `
-class Tap extends AudioWorkletProcessor {
-  process(inputs) {
-    const ch = inputs[0] && inputs[0][0];
-    if (ch) this.port.postMessage(ch.slice(0));
-    return true;
-  }
-}
-registerProcessor('cn-tap', Tap);
-`;
-
-/** Linear resample to 16 kHz mono. */
-export function resample(input: Float32Array, from: number): Float32Array {
-  if (from === SAMPLE_RATE) return input;
-  const ratio = from / SAMPLE_RATE;
-  const out = new Float32Array(Math.floor(input.length / ratio));
-  for (let i = 0; i < out.length; i++) {
-    const x = i * ratio;
-    const i0 = Math.floor(x);
-    const i1 = Math.min(i0 + 1, input.length - 1);
-    out[i] = input[i0]! + (input[i1]! - input[i0]!) * (x - i0);
-  }
-  return out;
-}
 
 const rms = (a: Float32Array) => {
   let s = 0;
@@ -102,7 +79,7 @@ export class Chunker {
 export function createWhisperEngine(): SpeechEngine {
   let ctx: AudioContext | null = null;
   let stream: MediaStream | null = null;
-  let node: AudioWorkletNode | null = null;
+  let untap: (() => void) | null = null;
   let chunker: Chunker | null = null;
   let elapsedFn: () => number = () => 0;
   let busy = 0;
@@ -113,25 +90,20 @@ export function createWhisperEngine(): SpeechEngine {
     where: 'device',
     async start(h: EngineHandlers, { language, elapsed }) {
       elapsedFn = elapsed;
-      await loadWhisper(); // from cache; throws if the model isn't downloaded and we're offline
+      const model = ((await getSettings()).offlineModelId ?? 'tiny') as ModelKey;
+      await loadWhisper(model); // from cache; throws if the model isn't downloaded and we're offline
       // Raw audio: the browser's echo cancelling and noise suppression smear speech, and Whisper
       // copes with background noise better than with that processing.
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
       ctx = new AudioContext();
-      const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }));
-      await ctx.audioWorklet.addModule(url);
-      URL.revokeObjectURL(url);
-      const source = ctx.createMediaStreamSource(stream);
-      node = new AudioWorkletNode(ctx, 'cn-tap');
-      source.connect(node);
-      const lang = language === 'auto' ? undefined : language.split('-')[0];
+      const lang = whisperLanguage(language);
 
       chunker = new Chunker((audio, startMs, endMs) => {
         busy++;
         h.onPartial('…');
         queue = queue
           .then(() => transcribe(audio, lang))
-          .then((text) => {
+          .then(({ text }) => {
             if (text) h.onFinal({ text, startMs, endMs });
           })
           .catch(() => h.onError('transcribe'))
@@ -141,17 +113,16 @@ export function createWhisperEngine(): SpeechEngine {
           });
       });
 
-      const rate = ctx.sampleRate;
-      node.port.onmessage = (e: MessageEvent<Float32Array>) => chunker?.push(resample(e.data, rate), elapsedFn());
+      untap = await tapAudio(ctx, ctx.createMediaStreamSource(stream), (frame) => chunker?.push(frame, elapsedFn()));
     },
     async stop() {
       chunker?.flush(elapsedFn());
       chunker = null;
-      node?.disconnect();
+      untap?.();
       stream?.getTracks().forEach((t) => t.stop());
       await ctx?.close().catch(() => {});
       await queue; // let the last chunk finish so its words are saved
-      node = null;
+      untap = null;
       stream = null;
       ctx = null;
     },

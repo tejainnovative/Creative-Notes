@@ -42,13 +42,15 @@ function browserOrDemo(notice?: EngineNotice): EngineChoice {
  *   online otherwise: the browser's speech service
  *   offline / offline-only: on-device Whisper once downloaded (S13), else a labelled demo transcript
  */
-export function chooseEngine({ mode, online, cloudSpeech, deviceModel }: { mode: ConnectivityMode; online: boolean; cloudSpeech: boolean; deviceModel: boolean }): EngineChoice {
+export function chooseEngine({ mode, online, cloudSpeech, deviceModel, preferDevice = false }: { mode: ConnectivityMode; online: boolean; cloudSpeech: boolean; deviceModel: boolean; preferDevice?: boolean }): EngineChoice {
   if (import.meta.env.DEV) {
     const forced = forcedEngine();
     if (forced === 'demo') return { engine: createDemoEngine(900) };
     if (forced === 'silent') return { engine: createDemoEngine(10 * 60_000) };
   }
   const mayUseCloud = mode !== 'offline_only' && online;
+  // "Use on-device transcription even online": steadier than phone dictation for long meetings.
+  if (preferDevice && deviceModel) return { engine: createWhisperEngine(), fallback: () => (mayUseCloud ? browserOrDemo() : { engine: createDemoEngine(), notice: 'device-model-failed' }) };
   if (!mayUseCloud) {
     if (deviceModel) return { engine: createWhisperEngine(), fallback: () => ({ engine: createDemoEngine(), notice: 'device-model-failed' }) };
     return { engine: createDemoEngine(), notice: 'device-model-missing' };

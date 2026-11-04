@@ -88,7 +88,9 @@ export async function endMeeting(id: string, endedAtOverride?: number): Promise<
   const endedAt = endedAtOverride ?? Date.now();
   const segCount = await db.segments.where('meetingId').equals(id).count();
   const speakers = new Set((await db.segments.where('meetingId').equals(id).toArray()).map((s) => s.speaker).filter(Boolean));
-  const hasContent = segCount > 0;
+  // Audio kept for the clean-up pass: the summary waits until the transcript has been re-read.
+  const hasAudio = (await db.audio.where('meetingId').equals(id).count()) > 0;
+  const hasContent = segCount > 0 || hasAudio;
   await db.meetings.update(id, {
     endedAt,
     durationS: Math.round((endedAt - meeting.startedAt) / 1000),
@@ -97,7 +99,7 @@ export async function endMeeting(id: string, endedAtOverride?: number): Promise<
     aiStatus: hasContent ? 'pending' : 'done',
     updatedAt: endedAt,
   });
-  if (hasContent) await enqueueAiJob(id, 'summary');
+  if (hasContent && !hasAudio) await enqueueAiJob(id, 'summary');
   void searchIndex.refreshMeeting(id);
 }
 
@@ -105,8 +107,9 @@ export async function endMeeting(id: string, endedAtOverride?: number): Promise<
 export async function deleteMeeting(id: string): Promise<MeetingDetail | undefined> {
   const snapshot = await getMeeting(id);
   if (!snapshot) return undefined;
-  await db.transaction('rw', [db.meetings, db.segments, db.insights, db.summaries, db.actionItems, db.manualNotes, db.scoreCards, db.chatMessages, db.aiJobs, db.notes], async () => {
+  await db.transaction('rw', [db.meetings, db.segments, db.insights, db.summaries, db.actionItems, db.manualNotes, db.scoreCards, db.chatMessages, db.aiJobs, db.notes, db.audio], async () => {
     await db.segments.where('meetingId').equals(id).delete();
+    await db.audio.where('meetingId').equals(id).delete();
     await db.insights.where('meetingId').equals(id).delete();
     await db.summaries.delete(id);
     await db.actionItems.where('meetingId').equals(id).delete();

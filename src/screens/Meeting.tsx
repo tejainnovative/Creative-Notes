@@ -15,6 +15,22 @@ import {
 import { ChatPanel } from './parts/ChatPanel';
 import { speakerIndex } from './parts/speakers';
 import { ExportSheet } from './ExportSheet';
+import { db } from '../db/schema';
+import { useCleanup } from '../speech/cleanup';
+
+/** Shown while the after-meeting pass re-reads the audio for a cleaner transcript. */
+function CleanupBanner({ meetingId }: { meetingId: string }) {
+  const hasAudio = useLiveQuery(() => db.audio.where('meetingId').equals(meetingId).count().then((n) => n > 0), [meetingId]);
+  const p = useCleanup(meetingId);
+  if (!hasAudio && p === undefined) return null;
+  return (
+    <div className="px-4 pb-2">
+      <Banner tone="info">
+        {p === undefined ? 'The transcript will be cleaned up on this device shortly, then summarised.' : `Cleaning up the transcript on this device… ${Math.round(p * 100)}%`}
+      </Banner>
+    </div>
+  );
+}
 
 /** S04 Meeting detail: summary, transcript, insights and copilot for one meeting. */
 export function Meeting() {
@@ -72,6 +88,7 @@ export function Meeting() {
           {meeting.speakerCount && <span>{meeting.speakerCount} speakers</span>}
           <Badge tone={meeting.captureMode === 'offline' ? 'success' : 'accent'}>{meeting.captureMode === 'offline' ? 'On device' : 'Cloud'}</Badge>
         </div>
+        <CleanupBanner meetingId={id} />
         <SegmentedTabs
           label="Meeting views"
           value={tab}

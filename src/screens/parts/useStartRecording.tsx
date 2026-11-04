@@ -14,7 +14,14 @@ export function useStartRecording() {
 
   async function begin() {
     const s = await getSettings();
-    const id = await recorder.start({ mode: s.connectivityMode, online: navigator.onLine, language: s.language, deviceModel: s.offlineModel === 'ready' });
+    const id = await recorder.start({
+      mode: s.connectivityMode,
+      online: navigator.onLine,
+      language: s.language,
+      deviceModel: s.offlineModel === 'ready',
+      preferDevice: s.speechEngine === 'device',
+      keepAudio: s.offlineModel === 'ready' && s.cleanupAfterRecording,
+    });
     if (id) navigate('/record');
     else if (recorder.get().micError === 'busy') navigate('/record');
     else navigate('/mic-help');

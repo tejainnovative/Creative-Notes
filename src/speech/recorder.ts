@@ -3,6 +3,8 @@ import { db } from '../db/schema';
 import { appendSegment, deleteMeeting, endMeeting, setCaptureMode, startMeeting } from '../data/meetings';
 import type { ConnectivityMode } from '../data/settings';
 import { cloudSpeechReady } from '../net/api';
+import { keepMeetingAudio } from './audioKeeper';
+import { pauseCleanup, runCleanups } from './cleanup';
 import { chooseEngine, type EngineNotice } from './engines';
 import { micErrorFrom, openMicLevels, type MicError } from './micLevels';
 import type { EngineId, FinalSegment, SpeechEngine } from './types';
@@ -31,6 +33,7 @@ function set(patch: Partial<RecorderState>) {
 
 let engine: SpeechEngine | null = null;
 let closeMic: (() => void) | null = null;
+let stopKeeping: (() => Promise<void>) | null = null;
 let releaseLock: (() => void) | null = null;
 let wakeLock: { release(): Promise<void> } | null = null;
 
@@ -68,9 +71,10 @@ export const recorder = {
   },
 
   /** Starts a meeting. Returns the meeting id, or undefined with micError set. */
-  async start({ mode, online, language, title, deviceModel = false }: { mode: ConnectivityMode; online: boolean; language: string; title?: string; deviceModel?: boolean }): Promise<string | undefined> {
+  async start({ mode, online, language, title, deviceModel = false, preferDevice = false, keepAudio = false }: { mode: ConnectivityMode; online: boolean; language: string; title?: string; deviceModel?: boolean; preferDevice?: boolean; keepAudio?: boolean }): Promise<string | undefined> {
     if (state.status !== 'idle') return state.meetingId;
     set({ status: 'starting', micError: undefined, notice: undefined, partial: '' });
+    pauseCleanup(true);
 
     if (!(await takeLock())) {
       set({ status: 'idle', micError: 'busy' });
@@ -80,11 +84,12 @@ export const recorder = {
       closeMic = await openMicLevels(BARS, (levels) => set({ levels }));
     } catch (err) {
       releaseLock?.();
+      pauseCleanup(false);
       set({ status: 'idle', micError: err instanceof DOMException && err.name === 'NotSupportedError' ? 'unsupported' : micErrorFrom(err) });
       return undefined;
     }
 
-    let choice = chooseEngine({ mode, online, cloudSpeech: cloudSpeechReady(), deviceModel });
+    let choice = chooseEngine({ mode, online, cloudSpeech: cloudSpeechReady(), deviceModel, preferDevice });
     const meeting = await startMeeting({ title, mode: choice.engine.where === 'cloud' ? 'online' : 'offline', language });
     const elapsed = () => Date.now() - meeting.startedAt;
     const handlers = {
@@ -118,6 +123,8 @@ export const recorder = {
       }
     }
     await setCaptureMode(meeting.id, engine.where === 'cloud' ? 'online' : 'offline');
+    // Keep the audio for the clean-up pass. Not fatal: the live transcript works without it.
+    if (keepAudio) stopKeeping = await keepMeetingAudio(meeting.id, elapsed).catch(() => null);
     set({
       status: 'recording',
       meetingId: meeting.id,
@@ -138,6 +145,7 @@ export const recorder = {
       closeMic = null;
       releaseLock?.();
       releaseLock = null;
+      pauseCleanup(false);
       set({ status: 'idle', partial: '', levels: Array(BARS).fill(0), engine: undefined });
       return undefined;
     }
@@ -145,6 +153,8 @@ export const recorder = {
     set({ status: 'stopping' });
     await engine?.stop();
     engine = null;
+    await stopKeeping?.();
+    stopKeeping = null;
     closeMic?.();
     closeMic = null;
     await wakeLock?.release().catch(() => {});
@@ -153,6 +163,8 @@ export const recorder = {
     releaseLock?.();
     releaseLock = null;
     set({ status: 'idle', meetingId: undefined, startedAt: undefined, partial: '', levels: Array(BARS).fill(0), engine: undefined });
+    pauseCleanup(false);
+    void runCleanups().catch(() => {});
     return id;
   },
 

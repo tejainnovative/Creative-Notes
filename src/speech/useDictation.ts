@@ -33,8 +33,8 @@ async function pickEngine(): Promise<SpeechEngine | null> {
   if (forced === 'silent') return createDemoEngine(10 * 60_000);
   const s = await getSettings();
   const mayUseCloud = s.connectivityMode !== 'offline_only' && navigator.onLine;
+  if (s.offlineModel === 'ready' && (s.speechEngine === 'device' || !mayUseCloud)) return createWhisperEngine();
   if (mayUseCloud && browserSpeechSupported()) return createBrowserEngine();
-  if (s.offlineModel === 'ready') return createWhisperEngine();
   return null;
 }
 

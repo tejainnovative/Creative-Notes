@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { NavBar, cx } from '../ui';
 import { requestPersistentStorage, runAiJobs, useSettings } from '../data';
 import { recoverInterruptedMeetings, useRecorder } from '../speech/recorder';
+import { runCleanups } from '../speech/cleanup';
 import { refreshServer } from '../net/api';
 import { pullInbox } from '../net/inbox';
 import { RecordingPill } from './RecordingPill';
@@ -28,6 +29,7 @@ export function AppShell() {
     // On start and whenever the connection returns: check the server, pull Siri notes, run queued AI.
     const sync = async () => {
       await recoverInterruptedMeetings();
+      void runCleanups().catch(() => {});
       await refreshServer();
       await pullInbox().catch(() => 0);
       await runAiJobs();

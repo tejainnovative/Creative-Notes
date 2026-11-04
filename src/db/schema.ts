@@ -157,6 +157,20 @@ export interface AiJob {
   updatedAt: Ms;
 }
 
+/**
+ * Meeting audio, kept only until the after-meeting clean-up pass has re-transcribed it.
+ * 16 kHz mono, 16-bit, in chunks of a few seconds.
+ */
+export interface AudioChunk {
+  id: Id;
+  meetingId: Id;
+  seq: number;
+  /** Int16 samples. */
+  pcm: ArrayBuffer;
+  /** Milliseconds from the start of the meeting to the first sample. */
+  atMs: number;
+}
+
 export interface Setting { key: string; value: unknown }
 
 export interface CryptoMeta {
@@ -178,6 +192,7 @@ export class CreativeNotesDB extends Dexie {
   chatMessages!: Table<ChatMessage, Id>;
   aiJobs!: Table<AiJob, Id>;
   todos!: Table<Todo, Id>;
+  audio!: Table<AudioChunk, Id>;
   settings!: Table<Setting, string>;
   cryptoMeta!: Table<CryptoMeta, string>;
 
@@ -201,6 +216,10 @@ export class CreativeNotesDB extends Dexie {
     this.version(2).stores({
       actionItems:  'id, meetingId, done, dueAt, remindAt',
       todos:        'id, done, dueAt, remindAt, createdAt, noteId',
+    });
+    // v3: meeting audio, temporary, for the after-meeting clean-up pass.
+    this.version(3).stores({
+      audio:        'id, meetingId, [meetingId+seq]',
     });
   }
 }

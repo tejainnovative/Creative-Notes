@@ -41,9 +41,22 @@ test('F10-H2 real speech is transcribed on the device with the network off', asy
   await expect(transcript).toContainText(/ask not\W*(\d\d:\d\d)?\W*what your country can do for you/i, { timeout: 120_000 });
   await page.getByRole('button', { name: 'Stop recording' }).click();
 
+  // The clean-up pass re-reads the kept audio, replaces the live transcript, then deletes the audio.
+  const audioLeft = () => page.evaluate(() => new Promise<number>((res, rej) => {
+    const r = indexedDB.open('creative-notes');
+    r.onerror = () => rej(r.error);
+    r.onsuccess = () => {
+      const q = r.result.transaction('audio').objectStore('audio').count();
+      q.onsuccess = () => { res(q.result); r.result.close(); };
+    };
+  }));
+  await expect.poll(audioLeft, { timeout: 180_000, intervals: [1000] }).toBe(0);
+  await expect(page.getByText(/Cleaning up the transcript|cleaned up on this device/)).toHaveCount(0);
   await expect(page.getByText(/written when you're back online/)).toBeVisible();
   await page.getByRole('tab', { name: 'Transcript' }).click();
-  await expect(page.getByRole('list', { name: 'Transcript' })).toContainText(/your country/i);
+  const cleaned = page.getByRole('list', { name: 'Transcript' });
+  // Whole windows, cut at pauses: the sentence is no longer split across lines.
+  await expect(cleaned).toContainText(/ask not what your country can do for you/i);
   expect(remote, 'requests that left the device while offline').toEqual([]);
 });
 
