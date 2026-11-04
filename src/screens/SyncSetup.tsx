@@ -84,7 +84,12 @@ export function SyncSetup() {
 
           {on ? (
             <>
-              {sync.state === 'error' && sync.error && <Banner tone="danger">{ERRORS[sync.error]}</Banner>}
+              {sync.state === 'error' && sync.error && (
+                <Banner tone="danger">
+                  {ERRORS[sync.error]}
+                  {sync.detail && <span className="mt-1 block text-xs break-all opacity-80">Details: {sync.detail}</span>}
+                </Banner>
+              )}
               {sync.state === 'offline' && <Banner tone="warning">You're offline. Changes sync when you're back online.</Banner>}
               <p className="flex items-center gap-2 text-sm text-success">
                 {sync.state === 'syncing'

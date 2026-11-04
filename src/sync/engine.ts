@@ -22,6 +22,8 @@ export interface SyncStatus {
   state: SyncState;
   lastSyncAt: number;
   error?: 'wrong_passphrase' | 'not_paired' | 'server' | 'reset';
+  /** What failed, for troubleshooting: the step and the browser's error. */
+  detail?: string;
 }
 
 let status: SyncStatus = { state: 'off', lastSyncAt: 0 };
@@ -159,6 +161,7 @@ async function syncOnce(): Promise<void> {
   if (!s.deviceToken) return setStatus({ state: 'error', error: 'not_paired', lastSyncAt: s.lastSyncAt });
   if (!navigator.onLine) return setStatus({ state: 'offline', lastSyncAt: s.lastSyncAt });
   setStatus({ state: 'syncing', lastSyncAt: s.lastSyncAt });
+  step = 'start';
   try {
     // The space can be reset from another device; then this key no longer fits. Checked now and then.
     if (Date.now() - verifiedAt > 5 * 60_000) {
@@ -176,7 +179,7 @@ async function syncOnce(): Promise<void> {
     if (changed) searchIndex.reset();
     const t = Date.now();
     await setSetting('lastSyncAt', t);
-    setStatus({ state: 'idle', lastSyncAt: t, error: undefined });
+    setStatus({ state: 'idle', lastSyncAt: t, error: undefined, detail: undefined });
   } catch (err) {
     verifiedAt = 0;
     localDirty = true; // try the upload again next time
@@ -186,11 +189,15 @@ async function syncOnce(): Promise<void> {
     }
     if (err instanceof SyncSetupError && err.code === 'wrong_passphrase') return setStatus({ state: 'error', error: 'wrong_passphrase' });
     if (err instanceof ApiError && err.code === 'not_paired') return setStatus({ state: 'error', error: 'not_paired' });
-    setStatus({ state: navigator.onLine ? 'error' : 'offline', error: navigator.onLine ? 'server' : undefined });
+    const e = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    setStatus({ state: navigator.onLine ? 'error' : 'offline', error: navigator.onLine ? 'server' : undefined, detail: `${step} · ${e}`.slice(0, 200) });
   }
 }
 
 /** Applies what other devices sent. Returns true if anything here changed. */
+/** Where a sync is, so an error can say which step failed. */
+let step = '';
+
 async function pull(k: SyncKeys, cursor: number): Promise<boolean> {
   let changed = false;
   for (;;) {
@@ -200,6 +207,7 @@ async function pull(k: SyncKeys, cursor: number): Promise<boolean> {
       cursor: number;
     };
     for (const item of page.items) {
+      step = `pull ${item.deleted ? 'delete' : 'apply'}`;
       if (item.deleted) {
         const meta = await db.syncMeta.where('rkey').equals(item.key).first();
         if (!meta) continue;
@@ -235,6 +243,7 @@ async function pull(k: SyncKeys, cursor: number): Promise<boolean> {
 
 /** Sends what changed or was deleted here since the last sync. */
 async function push(k: SyncKeys): Promise<void> {
+  step = 'push list';
   const keysHere = await localKeys();
   const metas = new Map((await db.syncMeta.toArray()).map((m) => [m.key, m]));
   type Out = { item: { key: string; iv?: string; data?: string; deleted: boolean }; meta?: { key: string; rkey: string; hash: string }; drop?: string; size: number };
@@ -243,6 +252,7 @@ async function push(k: SyncKeys): Promise<void> {
 
   const flush = async () => {
     if (!batch.length) return;
+    step = 'push send';
     const res = await apiFetch('/sync/items', { body: { items: batch.map((b) => b.item) } });
     const { cursor } = (await res.json()) as { cursor: number };
     await db.transaction('rw', db.syncMeta, async () => {
@@ -264,6 +274,7 @@ async function push(k: SyncKeys): Promise<void> {
   };
 
   for (const key of keysHere) {
+    step = `push ${key.split(':')[0]}`;
     const unit = await readUnit(key);
     if (!unit) continue;
     const hash = await hashOf(unit);
